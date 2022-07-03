@@ -1,7 +1,5 @@
-datasets
+.venv
 .venv/*
 _reference
 __pycache__
 .vscode
-log
-result

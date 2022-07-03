@@ -47,7 +47,8 @@ def recursive_infer(
 
             for i in range(count):
                 if i == 0:
-                    x = raw_data.reshape([1, raw_data.shape[0], input_feature_length])
+                    x = raw_data[:, :input_feature_length]
+                    x = x.reshape([1, raw_data.shape[0], input_feature_length])
                     x = x[:, :sequence_length, :]
                     x = torch.from_numpy(x)
                     pred = net(x)
@@ -64,7 +65,7 @@ def recursive_infer(
                 
                 x_arr  = x.numpy()
                 x_arr = np.delete(x_arr, obj=0, axis=1)
-                pred_arr = pred_arr[:, -1, :].reshape([1, 1, input_feature_length])
+                pred_arr = pred_arr[:, -1, :input_feature_length].reshape([1, 1, input_feature_length])
                 x = np.concatenate([x_arr, pred_arr], axis=1)
                 x = torch.from_numpy(x)
 
