@@ -18,7 +18,7 @@ import torch.optim as optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-from datahandler.dataset import JointDataset
+from datahandler.lstm_dataset import JointDataset
 from model.lstm import LSTMSeq
 
 warnings.simplefilter('ignore')
