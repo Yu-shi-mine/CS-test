@@ -3,4 +3,4 @@
 _reference
 __pycache__
 .vscode
-.log
+log
