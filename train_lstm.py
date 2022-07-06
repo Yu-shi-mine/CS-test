@@ -1,8 +1,8 @@
 """
 学習用
 """
- 
-import os, time
+
+import os, time, glob
 from datetime import datetime
 from typing import OrderedDict
 import warnings
@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.optim as optim
+from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn import functional as F
 
@@ -24,7 +25,7 @@ from model.lstm import LSTMSeq
 
 warnings.simplefilter('ignore')
 
-def train(net: nn.Module, dataloaders_dict: dict, optimizer: torch.optim, scheduler: torch.optim.lr_scheduler, num_epochs: int, log_dir: str):
+def train(net: nn.Module, dataloader_dict: dict, optimizer: torch.optim, scheduler: torch.optim.lr_scheduler, num_epochs: int, log_dir: str):
     # Output folder
     dt = datetime.today().strftime('%Y%m%d_%H%M%S')
     log_dir = os.path.join(log_dir, dt)
@@ -43,7 +44,6 @@ def train(net: nn.Module, dataloaders_dict: dict, optimizer: torch.optim, schedu
     logs = []
     step_duration = 0.0
     epoch_duration = 0.0
-    disp = 'train'
 
     # Epoch loop
     # Record time first epoch start
@@ -57,45 +57,39 @@ def train(net: nn.Module, dataloaders_dict: dict, optimizer: torch.optim, schedu
         for phase in ['train', 'val']:
             if phase == 'train':
                 net.train()
-                disp = 'train'
             else:
                 net.eval()
-                disp = 'valid'
-            dataloader_list = dataloader_dict[phase]
+            
+            for x, y in dataloader_dict[phase]:
+                x = x.to(device)
+                y = y.to(device)
 
-            for dataloader in dataloader_list:
-                # t_step_start = time.time()
-                # minibatch loop
-                for x, y in dataloader:
-                    x = x.to(device)
-                    y = y.to(device)
+                # Initialize optimizer
+                optimizer.zero_grad()
 
-                    # Initialize optimizer
-                    optimizer.zero_grad()
+                # Forward
+                with torch.set_grad_enabled(phase == 'train'):
 
-                    # Forward
-                    with torch.set_grad_enabled(phase == 'train'):
+                    output = net(x)
 
-                        output = net(x)
+                    # Caluculate loss
+                    loss = F.mse_loss(output, y)
 
-                        # Caluculate loss
-                        loss = F.mse_loss(output, y)
+                    # Backpropagation when phase == train
+                    if phase == 'train':
+                        loss.backward()
 
-                        # Backpropagation when phase == train
-                        if phase == 'train':
-                            loss.backward()
+                        nn.utils.clip_grad_value_(
+                            net.parameters(), clip_value=2.0
+                        )
 
-                            nn.utils.clip_grad_value_(
-                                net.parameters(), clip_value=2.0
-                            )
+                        optimizer.step()
 
-                            optimizer.step()
-
-                            epoch_train_loss += loss.item()
-                            train_iteration += 1
-                        else:
-                            epoch_val_loss =+ loss.item()
-                            val_iteration += 1
+                        epoch_train_loss += loss.item()
+                        train_iteration += 1
+                    else:
+                        epoch_val_loss =+ loss.item()
+                        val_iteration += 1
 
                     
                     # Record time first epoch start
@@ -134,45 +128,58 @@ def train(net: nn.Module, dataloaders_dict: dict, optimizer: torch.optim, schedu
 # Test
 if __name__ == '__main__':
     # Settings
-    dataset_dir = './datasets/06_20220703_213905_7feature_train30_val10_test1'
-    feature_length = 7
-    input_feature_length = 6
-    output_feature_length = 7
-    sequence_length = 90
-    batch_size = 1
-    min_max_scaler = MinMaxScaler(feature_length=feature_length)
+    DATASET_ROOT = './datasets/01_20220706_193257_sin'
+    
     log_dir = './log'
     os.makedirs(log_dir, exist_ok=True)
 
-    #   Create DataLoader List
-    phase = 'train'
-    train_dataloader_list = GenDataLoaderList(
-        dataset_dir=dataset_dir,
-        phase=phase,
-        feature_length=feature_length,
-        input_feature_length=input_feature_length,
-        output_feature_length=output_feature_length,
-        sequence_length=sequence_length,
-        batch_size=batch_size,
-        transform=min_max_scaler
-        )
+    # Create Dataset
+    train_path_list = glob.glob(os.path.join(DATASET_ROOT, 'train/*/joint/joint.csv'))
+    val_path_list = glob.glob(os.path.join(DATASET_ROOT, 'val/*/joint/joint.csv'))
 
-    phase = 'val'
-    val_dataloader_list = GenDataLoaderList(
-        dataset_dir=dataset_dir,
-        phase=phase,
-        feature_length=feature_length,
-        input_feature_length=input_feature_length,
-        output_feature_length=output_feature_length,
-        sequence_length=sequence_length,
-        batch_size=batch_size,
-        transform=min_max_scaler
-        )
+    window_size = 90
+    runup_length  = window_size
+    inertia_length = window_size
 
-    dataloader_dict = {'train': train_dataloader_list, 'val': val_dataloader_list}
+    train_datast = LstmDataset(
+        csv_path_list=train_path_list,
+        window_size=window_size,
+        runup_length= runup_length,
+        inertia_length=inertia_length
+    )
+    val_dataset = LstmDataset(
+        csv_path_list=val_path_list,
+        window_size=window_size,
+        runup_length=runup_length,
+        inertia_length=inertia_length
+    )
+
+    # Create DataLoader
+    batch_size = 32
+    train_dataloader = DataLoader(
+        dataset=train_datast,
+        batch_size=batch_size,
+        num_workers=0,
+        shuffle=False
+    )
+    val_dataloader = DataLoader(
+        dataset=val_dataset,
+        batch_size=batch_size,
+        num_workers=0,
+        shuffle=False
+    )
+
+    dataloader_dict = {'train': train_dataloader, 'val': val_dataloader}
 
     # Define network
-    net = LSTMSeq(input_feature_length=input_feature_length, output_feature_length=output_feature_length)
+    input_size = 1
+    output_size = 1
+    hidden_size = 40
+    net = LSTMSeq(
+        input_size=input_size,
+        hidden_size=hidden_size,
+        output_size=output_size
+    )
 
     # Define optimizer
     optimizer = optim.Adam(net.parameters(), lr=1e-3)
@@ -184,7 +191,7 @@ if __name__ == '__main__':
     num_epochs = 100
     train(
         net=net,
-        dataloaders_dict=dataloader_dict,
+        dataloader_dict=dataloader_dict,
         optimizer=optimizer,
         scheduler=scheduler,
         num_epochs=num_epochs,

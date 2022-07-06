@@ -13,9 +13,8 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class LstmDataset(Dataset):
-    def __init__(self, window_size: int, csv_path_list: list, time_shift: int) -> None:
-        self.window_size = window_size
-        self.data_arr, self.label_arr = self.load_csv(csv_path_list, time_shift)
+    def __init__(self, csv_path_list: list, window_size: int, runup_length: int, inertia_length: int) -> None: 
+        self.data_arr, self.label_arr = self.load_csv(csv_path_list, window_size, runup_length, inertia_length)
 
     def __len__(self) -> int:
         return self.data_arr.shape[0]
@@ -28,57 +27,84 @@ class LstmDataset(Dataset):
         y = torch.tensor(y)
         return x, y
     
-    def load_csv(self, csv_path_list: list, time_shift: int) -> Tuple[np.ndarray, np.ndarray]:
-        data = []
-        label = []
-        for i, path in enumerate(csv_path_list):
-            raw_data = np.loadtxt(path, delimiter=',', dtype='float32')
-            extended_data = self.runup_extend(data=raw_data)
-            windowed_data, windowed_label = self.window_split(data=extended_data, time_shift=time_shift)
-            data.append(windowed_data)
-            label.append(windowed_label)
-        _data_arr = np.array(data)
-        _label_arr = np.array(label)
-        _data_arr = _data_arr.reshape([-1, self.window_size, _data_arr.shape[3]])
-        _label_arr = _label_arr.reshape([-1, self.window_size, _label_arr.shape[3]])
+    def load_csv(self, csv_path_list: list, window_size: int, runup_length: int, inertia_length: int) -> Tuple[np.ndarray, np.ndarray]:
+        data_list = []
+        label_list = []
+        for path in csv_path_list:
+            # Load csv data
+            raw_data: np.ndarray = np.loadtxt(path, delimiter=',', dtype='float32')
+            if len(raw_data.shape) == 1:
+                raw_data = raw_data[:, np.newaxis]
+            elif len(raw_data.shape) == 2:
+                pass
+            else:
+                raise Exception
+            # print(raw_data.shape)
+                
+            # Extend raw data head and tail
+            ex_data = self.runup_extend(data=raw_data, runup_length=runup_length)
+            # print(ex_data.shape)
+            ex_data = self.inertia_extend(data=ex_data, inertia_length=inertia_length)
+            # print(ex_data.shape)
 
-        return _data_arr, _label_arr
+            # Split to windiwed data and label
+            data, label = self.window_split(data=ex_data, window_size=window_size)
+            # print(data.shape)
+            # print(label.shape)
+            data_list.append(data)
+            label_list.append(label)
+
+        data_arr = np.array(data_list)
+        label_arr = np.array(label_list)
+        # print(data_arr.shape)
+        # print(label_arr.shape)
+        data_arr = data_arr.reshape([-1, window_size, data_arr.shape[3]])
+        label_arr = label_arr.reshape([-1, label_arr.shape[2]])
+        # print(data_arr.shape)
+        # print(label_arr.shape)
+
+        return data_arr, label_arr
     
-    def runup_extend(self, data:np.ndarray) -> np.ndarray:
-        data = data.reshape([data.shape[0], -1])
-        tiled_arr = np.tile(data[0, :], [self.window_size, data.shape[1]])
+    def runup_extend(self, data: np.ndarray, runup_length: int) -> np.ndarray:
+        tiled_arr = np.tile(data[0, :], [runup_length, data.shape[1]])
         extended_data = np.concatenate([tiled_arr, data], axis=0)
         return extended_data
     
-    def window_split(self, data:np.ndarray, time_shift: int) -> Tuple[np.ndarray, np.ndarray]:
+    def inertia_extend(self, data: np.ndarray, inertia_length: int) -> np.ndarray:
+        tiled_arr = np.tile(data[-1, :], [inertia_length, data.shape[1]])
+        extended_data = np.concatenate([data, tiled_arr], axis=0)
+        return extended_data
+    
+    def window_split(self, data:np.ndarray, window_size: int) -> Tuple[np.ndarray, np.ndarray]:
         window_data = []
         window_label = []
-        for i in range(data.shape[0] - self.window_size - time_shift):
-            x = data[i:i+self.window_size, :]
-            y = data[i+time_shift:i+self.window_size+time_shift, :]
+        for i in range(0, data.shape[0]-window_size):
+            x = data[i:i+window_size, :]
+            y = data[i+window_size, :]
             window_data.append(x)
             window_label.append(y)
-        _windowed_data = np.array(window_data)
-        _windowed_label = np.array(window_label)
-        return _windowed_data, _windowed_label
+        windowed_data = np.array(window_data)
+        windowed_label = np.array(window_label)
+        return windowed_data, windowed_label
 
 
 # Test
 if __name__ == '__main__':
     # Setting
-    dataset_dir = './datasets/07_20220705_183400_sin'
+    dataset_dir = './datasets/01_20220706_193257_sin'
     csv_path_list = glob.glob(os.path.join(dataset_dir, 'test/*/joint/joint.csv'))
-    windoe_size = 180
+    window_size = 90
 
     # Create Dataset
     joint_dataset = LstmDataset(
-        window_size=windoe_size,
         csv_path_list=csv_path_list,
-        time_shift = 1
-        )
+        window_size=window_size,
+        runup_length=window_size,
+        inertia_length=window_size
+    )
 
     # Create DataLoader
-    batch_size = 32
+    batch_size = 1
     dataloader = DataLoader(joint_dataset, batch_size=batch_size, num_workers=0, shuffle=False)
 
     # Operation check
@@ -86,6 +112,7 @@ if __name__ == '__main__':
     x, y = next(batch_iterator)
     print('type(x) :', type(x))
     print('x.size() =', x.size())
+    print('y.size() =', y.size())
     print('len(dataset) =', len(joint_dataset))
     # print('x = ', x)
 
