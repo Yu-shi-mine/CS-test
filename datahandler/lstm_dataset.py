@@ -66,13 +66,21 @@ class LstmDataset(Dataset):
         return data_arr, label_arr
     
     def runup_extend(self, data: np.ndarray, runup_length: int) -> np.ndarray:
-        tiled_arr = np.tile(data[0, :], [runup_length, data.shape[1]])
-        extended_data = np.concatenate([tiled_arr, data], axis=0)
+        if runup_length != 0:
+            first_record = data[0, :]
+            tiled_arr = np.tile(first_record, (runup_length, 1))
+            extended_data = np.concatenate([tiled_arr, data], axis=0)
+        else:
+            extended_data = data
         return extended_data
     
     def inertia_extend(self, data: np.ndarray, inertia_length: int) -> np.ndarray:
-        tiled_arr = np.tile(data[-1, :], [inertia_length, data.shape[1]])
-        extended_data = np.concatenate([data, tiled_arr], axis=0)
+        if inertia_length != 0:
+            last_record = data[-1, :]
+            tiled_arr = np.tile(last_record, (inertia_length, 1))
+            extended_data = np.concatenate([data, tiled_arr], axis=0)
+        else:
+            extended_data = data
         return extended_data
     
     def window_split(self, data:np.ndarray, window_size: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -91,9 +99,9 @@ class LstmDataset(Dataset):
 # Test
 if __name__ == '__main__':
     # Setting
-    dataset_dir = './datasets/01_20220706_193257_sin'
+    dataset_dir = './datasets/02_20220710_213723_sincos'
     csv_path_list = glob.glob(os.path.join(dataset_dir, 'test/*/joint/joint.csv'))
-    window_size = 90
+    window_size = 360
 
     # Create Dataset
     joint_dataset = LstmDataset(

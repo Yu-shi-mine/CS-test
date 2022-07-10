@@ -28,6 +28,11 @@ def gen_folders(data_dict: dict) -> None:
             dataset_i_path = os.path.join(dataset_key_path, 'N{:0>2}'.format(i+1))
             os.makedirs(dataset_i_path, exist_ok=True)
 
+def add_noise(data: np.ndarray) -> np.ndarray:
+    noise = np.random.normal(loc=0, scale=0.1, size=data.shape)
+    data += noise
+    return data
+
 
 # Test
 if __name__ == '__main__':
@@ -54,9 +59,18 @@ if __name__ == '__main__':
             dataset_i_path = os.path.join(dataset_key_path, 'N{:0>2}'.format(i+1), 'joint')
             os.makedirs(dataset_i_path, exist_ok=True)
             t = np.arange(0, 360, div_ratio)
-            arr_data = np.sin(np.pi * t / 180)
-            noise = np.random.normal(loc=0, scale=0.1, size=arr_data.shape)
-            arr_data += noise
+
+            sin_data = np.sin(np.pi * t / 180)
+            sin_data = add_noise(sin_data)
+
+            cos_data = np.cos(np.pi * t / 180)
+            cos_data = add_noise(cos_data)
+            
+            cubic_data = (t/360) ** 2 + 3*(t/360) - 0.2
+            cubic_data = add_noise(cubic_data)
+            
+
+            arr_data = np.stack([sin_data, cos_data, cubic_data], axis=1)
             np.savetxt(os.path.join(dataset_i_path, 'joint.csv'), arr_data, delimiter=',')
 
     

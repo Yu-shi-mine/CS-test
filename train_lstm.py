@@ -10,7 +10,6 @@ import warnings
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
-
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -128,7 +127,7 @@ def train(net: nn.Module, dataloader_dict: dict, optimizer: torch.optim, schedul
 # Test
 if __name__ == '__main__':
     # Settings
-    DATASET_ROOT = './datasets/01_20220706_193257_sin'
+    DATASET_ROOT = './datasets/02_20220710_213723_sincos'
     
     log_dir = './log'
     os.makedirs(log_dir, exist_ok=True)
@@ -137,9 +136,9 @@ if __name__ == '__main__':
     train_path_list = glob.glob(os.path.join(DATASET_ROOT, 'train/*/joint/joint.csv'))
     val_path_list = glob.glob(os.path.join(DATASET_ROOT, 'val/*/joint/joint.csv'))
 
-    window_size = 90
-    runup_length  = window_size
-    inertia_length = window_size
+    window_size = 10
+    runup_length  = 10
+    inertia_length = 10
 
     train_datast = LstmDataset(
         csv_path_list=train_path_list,
@@ -172,11 +171,13 @@ if __name__ == '__main__':
     dataloader_dict = {'train': train_dataloader, 'val': val_dataloader}
 
     # Define network
-    input_size = 1
-    output_size = 1
-    hidden_size = 40
+    input_size = 2
+    lstm_input = 100
+    hidden_size = 200
+    output_size = 2
     net = LSTMSeq(
         input_size=input_size,
+        lstm_input=lstm_input,
         hidden_size=hidden_size,
         output_size=output_size
     )

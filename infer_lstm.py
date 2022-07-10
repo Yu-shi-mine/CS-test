@@ -7,7 +7,6 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -33,8 +32,8 @@ def infer(net: nn.Module, dataloader: DataLoader):
                 label_arr = label
                 isFirst = False
             else:
-                pred_arr = np.concatenate([pred_arr, pred], axis=1)
-                label_arr = np.concatenate([label_arr, label], axis=1)
+                pred_arr = np.concatenate([pred_arr, pred], axis=0)
+                label_arr = np.concatenate([label_arr, label], axis=0)
 
         return pred_arr, label_arr
 
@@ -59,8 +58,8 @@ def recursive_infer(net: nn.Module, dataloader: DataLoader):
                 label_arr = label
                 isFirst = False
             else:
-                pred_arr = np.concatenate([pred_arr, pred], axis=1)
-                label_arr = np.concatenate([label_arr, label], axis=1)
+                pred_arr = np.concatenate([pred_arr, pred], axis=0)
+                label_arr = np.concatenate([label_arr, label], axis=0)
 
             # Prepare for next step
             previous = input[:, 1:, :]      # shape: batch, window_size-1, input_size
@@ -70,9 +69,9 @@ def recursive_infer(net: nn.Module, dataloader: DataLoader):
         return pred_arr, label_arr
 
 def sort_results(pred_arr: np.ndarray, label_arr: np.ndarray) -> pd.DataFrame:
-    for i in range(pred_arr.shape[0]):
-        pred_col = pred_arr[i, :].reshape([-1, 1])
-        label_col = label_arr[i, :].reshape([-1, 1])
+    for i in range(pred_arr.shape[1]):
+        pred_col = pred_arr[:, i].reshape([-1, 1])
+        label_col = label_arr[:, i].reshape([-1, 1])
         result_col = np.concatenate([pred_col, label_col], axis=1)
         if i == 0:
             result = result_col
@@ -85,8 +84,8 @@ def sort_results(pred_arr: np.ndarray, label_arr: np.ndarray) -> pd.DataFrame:
 if __name__ == '__main__':
     # Settings
     RECURSIVE = True
-    DATASET_ROOT = './datasets/01_20220706_193257_sin'
-    TRAINED_WEIGHT_PATH = './log/20220706_214343_sin/weights_100.pth'
+    DATASET_ROOT = './datasets/02_20220710_213723_sincos'
+    TRAINED_WEIGHT_PATH = './log/20220710_220609/weights_100.pth'
 
     result_dir = './result/'
     result_dir = os.path.join(result_dir, datetime.today().strftime('%Y%m%d_%H%M%S'))
@@ -95,9 +94,9 @@ if __name__ == '__main__':
     #   Create Dataset
     test_path_list = glob.glob(os.path.join(DATASET_ROOT, 'test/*/joint/joint.csv'))
     
-    window_size = 90
-    runup_length  = window_size
-    inertia_length = window_size
+    window_size = 10
+    runup_length  = 10
+    inertia_length = 10
 
     test_datast = LstmDataset(
         csv_path_list=test_path_list,
@@ -117,11 +116,14 @@ if __name__ == '__main__':
     )
 
     # Define network
-    input_size = 1
-    output_size = 1
-    hidden_size = 40
+    input_size = 2
+    lstm_input = 100
+    hidden_size = 200
+    output_size = 2
+
     net = LSTMSeq(
         input_size=input_size,
+        lstm_input=lstm_input,
         hidden_size=hidden_size,
         output_size=output_size
     )
@@ -139,8 +141,7 @@ if __name__ == '__main__':
 
     # Save result
     result_arr = sort_results(pred_arr=pred_arr, label_arr=label_arr)
-    col_name = ['pred', 'truth']
+    col_name = ['pred_sin', 'truth_sin', 'pred_cos', 'truth_cos', 'pred_cubic', 'truth_cubic']
     df = pd.DataFrame(result_arr, columns=col_name)
 
     df.to_csv(os.path.join(result_dir, 'result.csv'))
-
