@@ -4,3 +4,5 @@ _reference
 __pycache__
 .vscode
 log
+09_LSTM_torch/mlruns
+09_LSTM_torch/outputs
