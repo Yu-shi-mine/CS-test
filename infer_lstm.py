@@ -84,8 +84,8 @@ def sort_results(pred_arr: np.ndarray, label_arr: np.ndarray) -> pd.DataFrame:
 if __name__ == '__main__':
     # Settings
     RECURSIVE = True
-    DATASET_ROOT = './datasets/02_20220710_213723_sincos'
-    TRAINED_WEIGHT_PATH = './log/20220710_220609/weights_100.pth'
+    DATASET_ROOT = './datasets/04_20220711_224516_scs'
+    TRAINED_WEIGHT_PATH = './log/20220721_222336/weights_100.pth'
 
     result_dir = './result/'
     result_dir = os.path.join(result_dir, datetime.today().strftime('%Y%m%d_%H%M%S'))
@@ -94,9 +94,9 @@ if __name__ == '__main__':
     #   Create Dataset
     test_path_list = glob.glob(os.path.join(DATASET_ROOT, 'test/*/joint/joint.csv'))
     
-    window_size = 10
-    runup_length  = 10
-    inertia_length = 10
+    window_size = 1
+    runup_length  = 0
+    inertia_length = 0
 
     test_datast = LstmDataset(
         csv_path_list=test_path_list,
@@ -116,10 +116,10 @@ if __name__ == '__main__':
     )
 
     # Define network
-    input_size = 2
+    input_size = 3
     lstm_input = 100
     hidden_size = 200
-    output_size = 2
+    output_size = 3
 
     net = LSTMSeq(
         input_size=input_size,

@@ -87,7 +87,7 @@ def train(net: nn.Module, dataloader_dict: dict, optimizer: torch.optim, schedul
                         epoch_train_loss += loss.item()
                         train_iteration += 1
                     else:
-                        epoch_val_loss =+ loss.item()
+                        epoch_val_loss += loss.item()
                         val_iteration += 1
 
                     
@@ -127,7 +127,7 @@ def train(net: nn.Module, dataloader_dict: dict, optimizer: torch.optim, schedul
 # Test
 if __name__ == '__main__':
     # Settings
-    DATASET_ROOT = './datasets/02_20220710_213723_sincos'
+    DATASET_ROOT = './datasets/04_20220711_224516_scs'
     
     log_dir = './log'
     os.makedirs(log_dir, exist_ok=True)
@@ -136,9 +136,9 @@ if __name__ == '__main__':
     train_path_list = glob.glob(os.path.join(DATASET_ROOT, 'train/*/joint/joint.csv'))
     val_path_list = glob.glob(os.path.join(DATASET_ROOT, 'val/*/joint/joint.csv'))
 
-    window_size = 10
-    runup_length  = 10
-    inertia_length = 10
+    window_size = 1
+    runup_length  = 0
+    inertia_length = 0
 
     train_datast = LstmDataset(
         csv_path_list=train_path_list,
@@ -171,10 +171,10 @@ if __name__ == '__main__':
     dataloader_dict = {'train': train_dataloader, 'val': val_dataloader}
 
     # Define network
-    input_size = 2
+    input_size = 3
     lstm_input = 100
     hidden_size = 200
-    output_size = 2
+    output_size = 3
     net = LSTMSeq(
         input_size=input_size,
         lstm_input=lstm_input,
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     scheduler = ExponentialLR(optimizer, gamma=0.95)
 
     # train
-    num_epochs = 100
+    num_epochs = 1000
     train(
         net=net,
         dataloader_dict=dataloader_dict,

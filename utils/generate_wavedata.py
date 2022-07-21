@@ -66,7 +66,7 @@ if __name__ == '__main__':
             cos_data = np.cos(np.pi * t / 180)
             cos_data = add_noise(cos_data)
             
-            cubic_data = (t/360) ** 2 + 3*(t/360) - 0.2
+            cubic_data = 3.125*(t/360-0.2)**2-1
             cubic_data = add_noise(cubic_data)
             
 

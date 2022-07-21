@@ -38,7 +38,7 @@ class LSTMSeq(nn.Module):
                             # If num_layer=1, x[:, -1, :] is equal to h_n[0].
 
         # Sigmodi layer
-        x = self.sigmoid(x)
+        # x = self.sigmoid(x)
 
         # Fully Connected layer
         pred = self.fc(x)   # output shape: batch, output_size

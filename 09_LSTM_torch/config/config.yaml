@@ -1,0 +1,25 @@
+run_name: 'seq_20'
+dataset:
+  sequence_num: 500
+  add_noise: False
+  data_window: 1
+  label_window: 5
+  time_shift: 1
+  total_wave_num: 1
+dataloader:
+  batch_size: 32
+  shuffle: False
+  num_worklers: 0
+model:
+  name: 'simple'
+  input_size: 1
+  hidden_size: 10
+  output_size: 1
+train:
+  num_epochs: 100
+  log_root: 'D:/01_WORKSPACE/09_LSTM_torch/log'
+infer:
+  weight_path: 'D:/01_WORKSPACE/09_LSTM_torch/log/20220721_223304'
+  weight_name: 'weights_100.pth'
+  recursive: True
+
